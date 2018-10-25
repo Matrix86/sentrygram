@@ -1,0 +1,8 @@
+{
+    "logs" : "",
+    "tgm_api": "TELEGRAM APIKEY",
+    "plugins_path": "plugins/",
+    "users": ["userName"],
+    "rpc_enabled": true,
+    "rpc_port": 8082
+}
