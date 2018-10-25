@@ -42,4 +42,3 @@ If you need to send a message to an authorized user you could use the client pro
 ## Plugins
 The bot integrates a plugin system using Javascript file as plugins. On JS side your script will receive the request and the response to modify. You can manipulate the received request as you want and to do this you can call several predefined Go functions like: log, readFile, cpuUsage, getProcesses, newBarGraph.
 For an example of how use the plugin system you can see the `example.js` file on the directory plugins of this project.
-
