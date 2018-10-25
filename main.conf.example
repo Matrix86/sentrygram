@@ -1,5 +1,6 @@
 {
     "logs" : "",
+    "log_level" : "debug", # debug, info, error
     "tgm_api": "TELEGRAM APIKEY",
     "plugins_path": "plugins/",
     "users": ["userName"],

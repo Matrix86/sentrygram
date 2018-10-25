@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/evilsocket/islazy/log"
 )
 
 type Configuration struct {
 	Logs        string   `json:"logs"`
+	LogsLevel   string   `json:"log_level"`
 	TgmAPI      string   `json:"tgm_api"`
 	PluginsPath string   `json:"plugins_path"`
 	Users       []string `json:"users"`
@@ -30,4 +33,18 @@ func LoadConfiguration(path string) (Configuration, error) {
 	}
 
 	return configuration, nil
+}
+
+func (c *Configuration) GetLogLevel() log.Verbosity {
+	switch c.LogsLevel {
+	case "debug":
+		return log.DEBUG
+	case "info":
+		return log.INFO
+	case "error":
+		return log.ERROR
+
+	default:
+		return log.INFO
+	}
 }

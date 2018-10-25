@@ -56,6 +56,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.Level = config.GetLogLevel()
 	log.Output = config.Logs
 	if err := log.Open(); err != nil {
 		panic(err)
