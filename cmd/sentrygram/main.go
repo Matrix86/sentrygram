@@ -2,13 +2,12 @@ package main
 
 import (
 	"flag"
+	"github.com/Matrix86/sentrygram/pluginmanager"
 	"os"
 	"os/signal"
 
 	"github.com/Matrix86/sentrygram/bot"
 	"github.com/Matrix86/sentrygram/core"
-	"github.com/Matrix86/sentrygram/core/pluginmanager"
-
 	"github.com/evilsocket/islazy/fs"
 	"github.com/evilsocket/islazy/log"
 	"github.com/mitchellh/go-homedir"
@@ -69,14 +68,14 @@ func main() {
 		log.Fatal("Error: %s", err)
 	}
 
-	bot, err := bot.NewTelegram(config.TgmAPI, config.Users, 60, bot.OnMessage, false, profilePath)
+	b, err := bot.NewTelegram(config.TgmAPI, config.Users, 60, bot.OnMessage, false, profilePath)
 	if err != nil {
 		log.Fatal("Error : %s\n", err)
 		return
 	}
 
 	if config.RpcEnabled {
-		go core.NewRpcHandler(config.RpcPort, bot)
+		go core.NewRpcHandler(config.RpcPort, b)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -84,9 +83,9 @@ func main() {
 	go func() {
 		for sig := range c {
 			log.Info("Captured %v, exiting..", sig)
-			bot.Stop()
+			b.Stop()
 		}
 	}()
 
-	bot.Run()
+	b.Run()
 }

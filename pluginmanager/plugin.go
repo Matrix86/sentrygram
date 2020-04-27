@@ -88,12 +88,12 @@ func (pm *PluginManager) HasCommand(cmd string) bool {
 	return false
 }
 
-func (pm *PluginManager) Exec(cmd string, req interface{}, res interface{}) (interface{}, error) {
+func (pm *PluginManager) Exec(cmd string, req interface{}) (interface{}, error) {
 	if !pm.IsInitialized() {
 		return "", fmt.Errorf("Exec: not initialized")
 	} else if pm.HasCommand(cmd) {
-		if ret, err := pm.commands[cmd].Call(cmd, req, res); err != nil {
-			return "", fmt.Errorf("Exec: %s", err)
+		if ret, err := pm.commands[cmd].Call(cmd, req); err != nil {
+			return nil, fmt.Errorf("Exec: %s", err)
 		} else {
 			return ret, nil
 		}

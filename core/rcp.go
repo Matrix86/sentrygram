@@ -21,7 +21,7 @@ type RpcRequest struct {
 }
 
 type Handler struct {
-	bot *bot.Telegram
+	bot bot.Bot
 }
 
 func (h *Handler) SendMessage(req RpcRequest, res *RpcResponse) (err error) {
@@ -42,7 +42,7 @@ func (h *Handler) SendMessage(req RpcRequest, res *RpcResponse) (err error) {
 	return
 }
 
-func NewRpcHandler(port int, bot *bot.Telegram) {
+func NewRpcHandler(port int, bot bot.Bot) {
 	rpc.Register(&Handler{bot: bot})
 	listener, _ := net.Listen("tcp", ":"+strconv.Itoa(port))
 	defer listener.Close()

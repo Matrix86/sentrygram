@@ -14,7 +14,7 @@ function padEnd(s,l,c){
     return s + pad;
 }
 
-function GetTopCpuProcs(req, res) {
+function GetTopCpuProcs(req) {
     procs = getProcesses()
     sorted = procs.sort(compareByCpu);
     result = "<pre> PID      CPU%     Mem%     Name \n";
@@ -26,10 +26,11 @@ function GetTopCpuProcs(req, res) {
         result += " " + padEnd(pid, 9, " ") + padEnd(cpu, 9, " ") + padEnd(mem, 9, " ") + name + "\n";
     }
     result += "</pre>";
-    res.Content = result;
+
+    sendMessage(req.From, result)
 }
 
-function GetCpuUsage(req, res) {
+function GetCpuUsage(req) {
     cpus = cpuUsage();
     label = [];
     for(i=0; i < cpus.length; i++) {
@@ -38,9 +39,21 @@ function GetCpuUsage(req, res) {
 
     file = newBarGraph("CPU Usage", cpus, label);
     if( file != "") {
-        res.Content = file;
-        res.Type = ImageType;
+        sendImage(req.From, file)
     } else {
-        res.Content = "Problem with image creation";
+        sendMessage(req.From, "Problem with image creation")
     }
+}
+
+// Message received on a group
+function OnGroupMessage(req) {
+    console.log("Message received on group "+req.ChatName+" sent from "+req.From);
+
+    // returning false the command are disabled on groups!
+    return false
+}
+
+// Message received on a private chat
+function OnPrivateChatMessage(req) {
+    log("Private message received from "+ req.From)
 }

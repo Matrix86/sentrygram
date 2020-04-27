@@ -5,8 +5,14 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"github.com/Matrix86/sentrygram/pluginmanager"
 	"io/ioutil"
+	"path"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/Matrix86/sentrygram/utils"
 
 	"github.com/evilsocket/islazy/async"
 	"github.com/evilsocket/islazy/log"
@@ -17,8 +23,8 @@ type Telegram struct {
 	bot          *tgbotapi.BotAPI
 	api          string
 	debug        bool
-	enabledUsers []string
-	chatId       map[string]int64
+	enabledUsers sync.Map
+	cacheId      sync.Map
 	profilePath  string
 
 	queue *async.WorkQueue
@@ -31,20 +37,9 @@ type CallbackArgument struct {
 	Msg *tgbotapi.Message
 }
 
-const (
-	Text int = iota
-	Image
-)
+type msgCallback func(msg *tgbotapi.Message, bot *Telegram) error
 
-type TelegramMessage struct {
-	ID      int64
-	Content interface{}
-	Type    int
-}
-
-type msgCallback func(msg *tgbotapi.Message, bot *Telegram) (TelegramMessage, error)
-
-func NewTelegram(api string, users []string, timeout int, cb msgCallback, debug bool, profilePath string) (*Telegram, error) {
+func NewTelegram(api string, users []string, timeout int, cb msgCallback, debug bool, profilePath string) (Bot, error) {
 	var err error
 	t := &Telegram{}
 
@@ -55,12 +50,62 @@ func NewTelegram(api string, users []string, timeout int, cb msgCallback, debug 
 	t.api = api
 	t.debug = debug
 	t.quit = make(chan int)
-	t.enabledUsers = users
 	t.msgcb = cb
 	t.profilePath = profilePath
-	if !t.loadUsernames() {
-		t.chatId = make(map[string]int64, 0)
+	t.loadUsernames()
+
+	for _, n := range users {
+		t.enabledUsers.Store(n, true)
 	}
+
+	// Bot's methods usable on JS
+	defines := map[string]interface{}{
+		"sendMessage": func(to string, message string) interface{} {
+			if err := t.SendMessage(to, message); err != nil {
+				log.Error("sendMessage: %s", err)
+			}
+			return err
+		},
+		"sendImage": func(to string, path string) interface{} {
+			if err := t.SendImage(to, path); err != nil {
+				log.Error("sendImage: %s", err)
+			}
+			return err
+		},
+		"sendFile": func(to string, path string) interface{} {
+			if err := t.SendFile(to, path); err != nil {
+				log.Error("sendFile: %s", err)
+			}
+			return err
+		},
+		"sendAudio": func(to string, path string) interface{} {
+			if err := t.SendAudio(to, path); err != nil {
+				log.Error("SendAudio: %s", err)
+			}
+			return err
+		},
+		"sendVideo": func(to string, path string) interface{} {
+			if err := t.SendVideo(to, path); err != nil {
+				log.Error("SendVideo: %s", err)
+			}
+			return err
+		},
+		"addAdmin": func(s string) interface{} {
+			t.enabledUsers.Store(s, true)
+			return nil
+		},
+		"getAdmins": func() interface{} {
+			list := make([]string, 0)
+			t.enabledUsers.Range(func(key interface{}, value interface{}) bool {
+				list = append(list, key.(string))
+				return true
+			})
+			return list
+		},
+	}
+
+	pm := pluginmanager.GetInstance()
+	pm.SetDefines(defines)
 
 	return t, nil
 }
@@ -68,6 +113,8 @@ func NewTelegram(api string, users []string, timeout int, cb msgCallback, debug 
 func (t *Telegram) Run() error {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
+
+	log.Info("Logged on account %s", t.bot.Self.UserName)
 
 	updates, err := t.bot.GetUpdatesChan(u)
 	if err != nil {
@@ -80,40 +127,25 @@ func (t *Telegram) Run() error {
 
 			if args.T.msgcb != nil {
 				// Handle message
-				if newMsg, err := args.T.msgcb(args.Msg, t); err == nil {
-					switch newMsg.Type {
-					case Text:
-						if text, ok := newMsg.Content.(string); ok {
-							msg := tgbotapi.NewMessage(newMsg.ID, text)
-							msg.ParseMode = "html"
-							if _, err := args.T.bot.Send(msg); err != nil {
-								log.Error("telegram callback: %s", err)
-							}
-						} else {
-							log.Debug("callback didn't return a string")
-						}
-
-					case Image:
-						// file is a string path to the file, FileReader, or FileBytes.
-						msg := tgbotapi.NewPhotoUpload(newMsg.ID, newMsg.Content)
-						args.T.bot.Send(msg)
-					}
-				} else {
-					log.Debug("callback error: %s", err)
+				if err := args.T.msgcb(args.Msg, t); err != nil {
+					log.Error("callback error: %s", err)
 				}
 			}
 		}
 	})
 	defer t.queue.WaitDone()
 
+	utils.DoEvery(1*time.Minute, t.flushUsernames)
+
 	for {
 		select {
 		case update := <-updates:
-			if update.Message == nil {
-				continue
+			if update.Message != nil {
+				t.queue.Add(async.Job(&CallbackArgument{T: t, Msg: update.Message}))
+			} else if update.ChannelPost != nil {
+				log.Debug("Received %#v", update.ChannelPost)
+				t.queue.Add(async.Job(&CallbackArgument{T: t, Msg: update.ChannelPost}))
 			}
-
-			t.queue.Add(async.Job(&CallbackArgument{T: t, Msg: update.Message}))
 
 		case <-t.quit:
 			return nil
@@ -129,10 +161,11 @@ func (t *Telegram) Stop() {
 }
 
 func (t *Telegram) SendMessage(username string, text string) error {
-	if id, ok := t.chatId[username]; ok {
-		msg := tgbotapi.NewMessage(id, text)
+	if id, ok := t.cacheId.Load(username); ok {
+		msg := tgbotapi.NewMessage(id.(int64), text)
+		msg.ParseMode = "html"
 		if _, err := t.bot.Send(msg); err != nil {
-			log.Error("telegram callback: %s", err)
+			log.Error("SendMessage: %s", err)
 			return err
 		}
 	} else {
@@ -142,7 +175,64 @@ func (t *Telegram) SendMessage(username string, text string) error {
 	return nil
 }
 
-func (t *Telegram) flushUsernames() {
+func (t *Telegram) SendImage(username string, path string) error {
+	if id, ok := t.cacheId.Load(username); ok {
+		msg := tgbotapi.NewPhotoUpload(id.(int64), path)
+		if _, err := t.bot.Send(msg); err != nil {
+			log.Error("sendImage: %s", err)
+			return err
+		}
+	} else {
+		return errors.New("sendImage: Username not found")
+	}
+
+	return nil
+}
+
+func (t *Telegram) SendFile(username string, path string) error {
+	if id, ok := t.cacheId.Load(username); ok {
+		msg := tgbotapi.NewDocumentUpload(id.(int64), path)
+		if _, err := t.bot.Send(msg); err != nil {
+			log.Error("SendFile: %s", err)
+			return err
+		}
+	} else {
+		return errors.New("SendFile: Username not found")
+	}
+
+	return nil
+}
+
+func (t *Telegram) SendAudio(username string, path string) error {
+	if id, ok := t.cacheId.Load(username); ok {
+		msg := tgbotapi.NewAudioUpload(id.(int64), path)
+		if _, err := t.bot.Send(msg); err != nil {
+			log.Error("SendAudio: %s", err)
+			return err
+		}
+	} else {
+		return errors.New("SendAudio: Username not found")
+	}
+
+	return nil
+}
+
+func (t *Telegram) SendVideo(username string, path string) error {
+	if id, ok := t.cacheId.Load(username); ok {
+		msg := tgbotapi.NewVideoUpload(id.(int64), path)
+		if _, err := t.bot.Send(msg); err != nil {
+			log.Error("SendVideo: %s", err)
+			return err
+		}
+	} else {
+		return errors.New("SendVideo: Username not found")
+	}
+
+	return nil
+}
+
+func (t *Telegram) flushUsernames(time time.Time) {
+	tmpMap := make(map[string]int64)
 	if t.profilePath == "" {
 		return
 	}
@@ -150,11 +240,27 @@ func (t *Telegram) flushUsernames() {
 	b := new(bytes.Buffer)
 	e := gob.NewEncoder(b)
 
-	if err := e.Encode(t.chatId); err != nil {
+	t.cacheId.Range(func(key interface{}, value interface{}) bool {
+		var username string
+		var ok bool
+		var id int64
+		if username, ok = key.(string); !ok {
+			log.Error("error on username")
+			return true
+		}
+		if id, ok = value.(int64); !ok {
+			log.Error("error on id")
+			return true
+		}
+		tmpMap[username] = id
+		return true
+	})
+
+	if err := e.Encode(tmpMap); err != nil {
 		log.Error("flushUsername Encode: %s", err)
 	}
 
-	if err := ioutil.WriteFile(t.profilePath+"/chat_ids.json", b.Bytes(), 0644); err != nil {
+	if err := ioutil.WriteFile(path.Join(t.profilePath, "ids_cache.dat"), b.Bytes(), 0644); err != nil {
 		log.Error("flushUsername WriteFile: %s", err)
 	}
 }
@@ -164,32 +270,23 @@ func (t *Telegram) loadUsernames() bool {
 		return false
 	}
 
-	dat, err := ioutil.ReadFile(t.profilePath + "/chat_ids.json")
+	dat, err := ioutil.ReadFile(path.Join(t.profilePath, "ids_cache.dat"))
 	if err != nil {
 		log.Error("loadUsernames: ReadFile: %s", err)
 		return false
 	}
 
+	var tmpMap map[string]int64
 	b := bytes.NewBuffer(dat)
 	d := gob.NewDecoder(b)
-	if err = d.Decode(&t.chatId); err != nil {
+	if err = d.Decode(&tmpMap); err != nil {
 		log.Error("loadUsernames: Decode: %s", err)
 		return false
 	}
 
-	// Check if all the previous enabled users are still enabled
-	for n, _ := range t.chatId {
-		exists := false
-		for _, n2 := range t.enabledUsers {
-			if n2 == n {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			delete(t.chatId, n)
-			t.flushUsernames()
-		}
+	// cannot directly unmarshal into a sync.Map obj
+	for u, i := range tmpMap {
+		t.cacheId.Store(u, i)
 	}
 
 	return true
@@ -210,4 +307,19 @@ func (t *Telegram) GetCommandArgs(cmd string) (string, string) {
 	}
 
 	return strings.Title(cmd), args
+}
+
+func (t *Telegram) getUserId(username string) (int64, error) {
+	if id, ok := t.cacheId.Load(username); ok {
+		return id.(int64), nil
+	}
+	return 0, fmt.Errorf("username %s not found", username)
+}
+
+func (t *Telegram) CacheUsername(username string, id int64) bool {
+	if _, ok := t.cacheId.Load(username); !ok {
+		t.cacheId.Store(username, id)
+		return true
+	}
+	return false
 }

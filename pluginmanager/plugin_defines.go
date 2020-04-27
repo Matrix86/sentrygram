@@ -19,8 +19,6 @@ const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func (pm *PluginManager) SetInitialDefines() {
 	plugin.Defines = map[string]interface{}{
-		"MessageType": 0,
-		"ImageType":   1,
 		"log": func(s string) interface{} {
 			log.Info(s)
 			return nil
@@ -118,6 +116,18 @@ func (pm *PluginManager) SetInitialDefines() {
 
 			return "/tmp/" + rnd
 		},
+	}
+}
+
+func (pm *PluginManager) SetDefines(defs map[string]interface{}) {
+	if pm.initialized == false {
+		log.Error("PluginManager not initialized")
+		return
+	}
+	for name, i := range defs {
+		for _, p := range pm.commands {
+			p.Set(name, i)
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ SentryGram is a Telegram bot that allows you to execute commands on your machine
 Only authorized users can use it and receive messages from it.
 
 *It is still in its initial state so many functionalities should be added.*
+
 ## Installation
 Make sure you have a GO >= 1.10 environment installed.
 
@@ -40,5 +41,52 @@ If you need to send a message to an authorized user you could use the client pro
     $ sentrygram_client -u "Username" -t "Text of the message"
 
 ## Plugins
-The bot integrates a plugin system using Javascript file as plugins. On JS side your script will receive the request and the response to modify. You can manipulate the received request as you want and to do this you can call several predefined Go functions like: log, readFile, cpuUsage, getProcesses, newBarGraph.
-For an example of how use the plugin system you can see the `example.js` file on the directory plugins of this project.
+
+The bot integrates a plugin system based on Javascript. It is possible to load one or more scripts with different functions in it.  
+Each functions (first letter capitalized) defined in the JS scripts will enable a command on the Telegram bot. The functions exported
+as commands will receive as argument the message read by the bot on private chat, group, etc.
+Events like "message received on a group" or "message received on a private chat" call precise functions if they are defined on JS side.
+The event functions are:
+
+Event | Description
+--- | ---
+OnUserAddOnGroup | one or more users had been added to the group
+OnGroupMessage | a message arrived on a group
+OnChanMessage | a message arrived on channel
+OnPrivateChatMessage | a message arrived on private chat
+OnSuperGroupMessage | a message arrived on supergroup
+
+All the events, as the command will receive an object with the following fields:
+
+```
+type BotMessage struct {
+	From         string
+	Content      string
+	ChatName     string
+	IsGroup      bool
+	IsPrivate    bool
+	IsSuperGroup bool
+	IsChannel    bool
+	IsCommand    bool
+}
+```
+
+The commands are parsed and executed after the events. If a callback event returns false, the command parsing phase will be skipped.  
+Only users defined in the configuration can execute commands.
+On JS side there are some functions defined:
+
+Function | Description
+--- | ---
+log(text string) | write a log line
+readFile(path string, binarymode bool) | read a file on the system and return its content as binary or string
+cpuUsage() | return an array with the usage of each cpu
+getProcesses() | return an array of struct { Name string, Cpu  float64, Pid  int32, Mem  float64 } with all the processes
+newBarGraph(title string, values []float64, labels []string) | return the path of an image of a bar graph
+exec(cmd string) | exec a command on the system and return the result
+sendMessage(to string, text string) | send a message to a user or group
+sendImage(to string, path string) | send an image to a user or group
+sendFile(to string, path string) | send a file to a user or group
+sendAudio(to string, path string) | send an audio to a user or group
+sendVideo(to string, path string) | send a video to a user or group
+addAdmin(name string) | add a bot's administrator
+getAdmins() | return a list with all the current defined administrators

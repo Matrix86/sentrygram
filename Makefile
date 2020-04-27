@@ -7,11 +7,10 @@ deps:
 	dep ensure
 
 build:
-	go build -o ${TARGET} -v -ldflags=${LDFLAGS} main.go
+	go build -o ${TARGET} -v -ldflags=${LDFLAGS} cmd/sentrygram/main.go
 
 build_client:
-	go build -o ${TARGET}_client -v -ldflags=${LDFLAGS} client/client.go
-
+	go build -o ${TARGET}_client -v -ldflags=${LDFLAGS} cmd/sentrygram_client/main.go
 clean:
 	rm ${TARGET}
 	rm ${TARGET}_client
