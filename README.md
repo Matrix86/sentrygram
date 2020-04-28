@@ -88,5 +88,8 @@ sendImage(to string, path string) | send an image to a user or group
 sendFile(to string, path string) | send a file to a user or group
 sendAudio(to string, path string) | send an audio to a user or group
 sendVideo(to string, path string) | send a video to a user or group
-addAdmin(name string) | add a bot's administrator
-getAdmins() | return a list with all the current defined administrators
+addBotAdmin(name string) | add a bot's administrator
+getBotAdmins() | return a list with all the current defined administrators
+kickUser(username string, group string) | kick a user from a group (or chan)
+leaveGroup(group string) | the bot leaves a group
+getChatMembersCount(group string) | returns the number of users in a group

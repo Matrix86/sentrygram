@@ -57,3 +57,39 @@ function OnGroupMessage(req) {
 function OnPrivateChatMessage(req) {
     log("Private message received from "+ req.From)
 }
+
+function LeaveChat(req) {
+    console.log(req.Content)
+    if( req.Content.length != 1) {
+        sendMessage(req.From, "one argument requested");
+        return
+    }
+    if( leaveGroup(req.Content[0]) ) {
+        sendMessage(req.From, "Bye bye "+req.Content[0]);
+    } else {
+        sendMessage(req.From, "Can't do that sir :(");
+    }
+}
+
+function LeaveChatById(req) {
+    console.log(req.Content)
+    if( req.Content.length != 1) {
+        sendMessage(req.From, "one argument requested");
+        return
+    }
+    if( leaveGroupById(req.Content[0]) ) {
+        sendMessage(req.From, "Bye bye "+req.Content[0]);
+    } else {
+        sendMessage(req.From, "Can't do that sir :(");
+    }
+}
+
+function GetCacheIds(req) {
+    cache = getCachedIds();
+    txt = "";
+    for(var key in cache) {
+        txt += key+" => "+cache[key]+"\n";
+    }
+    sendMessage(req.From, txt);
+
+}

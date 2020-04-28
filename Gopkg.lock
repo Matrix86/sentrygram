@@ -2,15 +2,15 @@
 
 
 [[projects]]
-  digest = "1:e92f5581902c345eb4ceffdcd4a854fb8f73cf436d47d837d1ec98ef1fe0a214"
+  digest = "1:9909e0a06cff3bd88841c9d2e0cc91b0a431676009018c74c3315f33b49b0046"
   name = "github.com/StackExchange/wmi"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5d049714c4a64225c3c79a7cf7d02f7fb5b96338"
-  version = "1.0.0"
+  revision = "cbe66965904dbe8a6cd589e2298e5d8b986bd7dd"
+  version = "1.1.0"
 
 [[projects]]
-  digest = "1:b8a482580cafda23f18e7ac322e1f6bcdaa5915592ff4e628d741965c742fd70"
+  digest = "1:4ce92e4b879216a4cd858c282bc40b1dbbe9cb7a76ad078a817ccd8a232b9520"
   name = "github.com/evilsocket/islazy"
   packages = [
     "async",
@@ -20,19 +20,19 @@
     "tui",
   ]
   pruneopts = "UT"
-  revision = "e86063a516840e32de87d39c214a6937b4d22e04"
-  version = "v1.8.0"
+  revision = "ea6e2fb1563729c67fe8f567e0ef47f90a8cd962"
+  version = "v1.10.6"
 
 [[projects]]
-  digest = "1:64a5a67c69b70c2420e607a8545d674a23778ed9c3e80607bfd17b77c6c87f6a"
+  digest = "1:440028f55cb322d8cb5b9d5ebec298a00b7d74690a658fe6b1c0c0b44341bfae"
   name = "github.com/go-ole/go-ole"
   packages = [
     ".",
     "oleutil",
   ]
   pruneopts = "UT"
-  revision = "a41e3c4b706f6ae8dfbff342b06e40fa4d2d0506"
-  version = "v1.2.1"
+  revision = "97b6244175ae18ea6eef668034fd6565847501c9"
+  version = "v1.2.4"
 
 [[projects]]
   branch = "master"
@@ -46,16 +46,16 @@
   revision = "e2365dfdc4a05e4b8299a783240d4a7d5a65d4e4"
 
 [[projects]]
-  digest = "1:78bbb1ba5b7c3f2ed0ea1eab57bdd3859aec7e177811563edc41198a760b06af"
+  digest = "1:5d231480e1c64a726869bc4142d270184c419749d34f167646baa21008eb0a79"
   name = "github.com/mitchellh/go-homedir"
   packages = ["."]
   pruneopts = "UT"
-  revision = "ae18d6b8b3205b561c79e8e5f69bff09736185f4"
-  version = "v1.0.0"
+  revision = "af06845cf3004701891bf4fdb884bfe4920b3727"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:dbfe572cc258e5bcf54cb650a06d90edd0da04e42ca1ed909cc1d49f00011c63"
+  digest = "1:328abe0530d78f851178ce62a4952c832f0b60e06e6cea7913024a14058bb1e0"
   name = "github.com/robertkrimen/otto"
   packages = [
     ".",
@@ -67,30 +67,21 @@
     "token",
   ]
   pruneopts = "UT"
-  revision = "15f95af6e78dcd2030d8195a138bd88d4f403546"
+  revision = "c382bd3c16ff2fef9b5fe0dd8bf4c4ec6bfe62c1"
 
 [[projects]]
-  digest = "1:7395b855a6078ad2e6c40311402a057a91125fb9f32cf228e1b32cdc57c33538"
+  digest = "1:a1b3e8dca0272d3971000ef0459322a3e678107607284310766bcb2c51f996cb"
   name = "github.com/shirou/gopsutil"
   packages = [
     "cpu",
-    "host",
     "internal/common",
     "mem",
     "net",
     "process",
   ]
   pruneopts = "UT"
-  revision = "8048a2e9c5773235122027dd585cf821b2af1249"
-  version = "v2.18.07"
-
-[[projects]]
-  branch = "master"
-  digest = "1:99c6a6dab47067c9b898e8c8b13d130c6ab4ffbcc4b7cc6236c2cd0b1e344f5b"
-  name = "github.com/shirou/w32"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "bb4de0191aa41b5507caa14b0650cdbddcd9280b"
+  revision = "53cec6b37e6a2fa787e771c706f7c1fd67ec40f1"
+  version = "v2.20.3"
 
 [[projects]]
   digest = "1:420817f94b6c172dabb8a054d0b2d257d7437a87c7c8c7ee432bc008a577fc46"
@@ -117,7 +108,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:03c6dfba956b81e4751f45210dc4b45ecb6bce028135d43f288cb3a0f58184d4"
+  digest = "1:8aa52c7f7476f9ce660f5db479eb0e19681b58783442f33459954757fc6732fe"
   name = "golang.org/x/image"
   packages = [
     "draw",
@@ -126,18 +117,18 @@
     "math/fixed",
   ]
   pruneopts = "UT"
-  revision = "9b1e201e7c4c9d6c9292ff73c2c1131e5aa5e5ac"
+  revision = "58c23975cae11f062d4b3b0c143fe248faac195d"
 
 [[projects]]
   branch = "master"
-  digest = "1:6c93c46c00889c28f5a105e7cb5ba56672fd4a2351375fa819acb44e66d427df"
+  digest = "1:968aac203feaa75d5e4c758550abcd9523dd736e5e3c2892e94feb9006e4fb36"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "d989b31c87461dc8ab2f1cac6792814e27fadea9"
+  revision = "29b57079015a5bb5f6b6f0c01679754e4bd75916"
 
 [[projects]]
   digest = "1:9935525a8c49b8434a0b0a54e1980e94a6fae73aaff45c5d33ba8dff69de123e"

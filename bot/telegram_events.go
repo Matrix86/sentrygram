@@ -40,6 +40,7 @@ func OnMessage(msg *tgbotapi.Message, bot *Telegram) error {
 		}
 		parseCommand = parseCommand && ret
 	} else if msg.Chat.IsChannel() {
+		bot.CacheUsername(msg.Chat.Title, msg.Chat.ID)
 		ret, err := OnChanMessage(msg, bot)
 		if err != nil {
 			log.Error("OnChanMessage: %s", err)
@@ -52,6 +53,7 @@ func OnMessage(msg *tgbotapi.Message, bot *Telegram) error {
 		}
 		parseCommand = parseCommand && ret
 	} else if msg.Chat.IsSuperGroup() {
+		bot.CacheUsername(msg.Chat.Title, msg.Chat.ID)
 		ret, err := OnSuperGroupMessage(msg, bot)
 		if err != nil {
 			log.Error("OnSuperGroupMessage: %s", err)
@@ -69,7 +71,12 @@ func OnMessage(msg *tgbotapi.Message, bot *Telegram) error {
 		if parseCommand && userIsEnabled && msg.IsCommand() {
 			return OnCommand(msg, bot)
 		} else {
-			log.Info("Received Message [%s : '%s']", msg.From.UserName, msg.Text)
+			typeMsg := msg.Chat.Type
+			if typeMsg != "private" {
+				typeMsg = fmt.Sprintf("(%s '%s' %d)", typeMsg, msg.Chat.Title, msg.Chat.ID)
+			}
+
+			log.Info("Received Message %s [%s : '%s']", typeMsg, msg.From.UserName, msg.Text)
 		}
 	}
 	return nil
@@ -138,7 +145,11 @@ func OnSuperGroupMessage(msg *tgbotapi.Message, bot *Telegram) (bool, error) {
 
 func OnCommand(msg *tgbotapi.Message, bot *Telegram) (error){
 	log.Debug("Received Command [%s : '%s']", msg.From.UserName, msg.Text)
-	cmd, _ := bot.GetCommandArgs(msg.Text)
+	cmd, args, err := bot.GetCommandArgs(msg.Text)
+	if err != nil {
+		log.Error("OnCommand: received '%s' : '%s'", msg.Text, err)
+		return bot.SendMessage(msg.From.UserName, "Command not recognized")
+	}
 	if _, ok := privateCommands[cmd]; ok {
 		// This type of command is private!
 		log.Error("Received private Command: '%s'", msg.Text)
@@ -159,7 +170,7 @@ func OnCommand(msg *tgbotapi.Message, bot *Telegram) (error){
 			return bot.SendMessage(msg.From.UserName, txt)
 		}
 
-		recMsg := BotMessage{From: msg.From.UserName, Content: msg.Text, ChatName: msg.Chat.Title, IsPrivate: msg.Chat.IsPrivate(), IsGroup: msg.Chat.IsGroup(), IsSuperGroup: msg.Chat.IsSuperGroup(), IsChannel: msg.Chat.IsChannel()}
+		recMsg := BotMessage{From: msg.From.UserName, Content: args, ChatName: msg.Chat.Title, IsPrivate: msg.Chat.IsPrivate(), IsGroup: msg.Chat.IsGroup(), IsSuperGroup: msg.Chat.IsSuperGroup(), IsChannel: msg.Chat.IsChannel()}
 		_, err := pm.Exec(cmd, &recMsg)
 		if err != nil {
 			log.Error("Received Command not recognized : '%s' : %s", msg.Text, err)
@@ -174,13 +185,15 @@ func OnCommand(msg *tgbotapi.Message, bot *Telegram) (error){
 
 func OnUserAddOnGroup(msg *tgbotapi.Message, bot *Telegram) (bool, error) {
 	for _, u := range *msg.NewChatMembers {
-		log.Debug("Added user '%s' to '%s'", u.UserName, msg.Chat.Title)
+		log.Debug("Added user '%s|%d' to '%s|%d'", u.UserName, u.ID, msg.Chat.Title, msg.Chat.ID)
 		bot.CacheUsername(u.UserName, int64(u.ID))
 		pm := pluginmanager.GetInstance()
-		recMsg := BotMessage{From: u.UserName, ChatName:  msg.Chat.Title, IsGroup: true}
-		_, err := pm.Exec("OnUserAddOnGroup", &recMsg)
-		if err != nil {
-			return true, err
+		if pm.HasCommand("OnUserAddOnGroup") {
+			recMsg := BotMessage{From: u.UserName, ChatName: msg.Chat.Title, IsGroup: msg.Chat.IsGroup(), IsSuperGroup: msg.Chat.IsSuperGroup(), IsChannel: msg.Chat.IsChannel()}
+			_, err := pm.Exec("OnUserAddOnGroup", &recMsg)
+			if err != nil {
+				return true, err
+			}
 		}
 	}
 	return true, nil

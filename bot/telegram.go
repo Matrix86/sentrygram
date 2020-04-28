@@ -2,12 +2,14 @@ package bot
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/gob"
 	"errors"
 	"fmt"
 	"github.com/Matrix86/sentrygram/pluginmanager"
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -90,17 +92,104 @@ func NewTelegram(api string, users []string, timeout int, cb msgCallback, debug 
 			}
 			return err
 		},
-		"addAdmin": func(s string) interface{} {
+		"addBotAdmin": func(s string) interface{} {
 			t.enabledUsers.Store(s, true)
 			return nil
 		},
-		"getAdmins": func() interface{} {
+		"getBotAdmins": func() interface{} {
 			list := make([]string, 0)
 			t.enabledUsers.Range(func(key interface{}, value interface{}) bool {
 				list = append(list, key.(string))
 				return true
 			})
 			return list
+		},
+		"kickUser": func(username string, chat string) interface{} {
+			chatID, err := t.getUserId(chat)
+			if err != nil {
+				return false
+			}
+			userID, err := t.getUserId(username)
+			if err != nil {
+				return false
+			}
+			cfg := tgbotapi.KickChatMemberConfig{
+				ChatMemberConfig: tgbotapi.ChatMemberConfig{
+					ChatID: chatID,
+					UserID: int(userID),
+				},
+			}
+			_, err = t.bot.KickChatMember(cfg)
+			if err != nil {
+				log.Error("kickUser: %s", err)
+				return false
+			}
+			return true
+		},
+		"leaveGroup": func(chat string) interface{} {
+			chatID, err := t.getUserId(chat)
+			if err != nil {
+				return false
+			}
+			cfg := tgbotapi.ChatConfig{
+				ChatID: chatID,
+			}
+			_, err = t.bot.LeaveChat(cfg)
+			if err != nil {
+				log.Error("leaveGroup: %s", err)
+				return false
+			}
+			return true
+		},
+		"leaveGroupById": func(sChatID string) interface{} {
+			chatID, err := strconv.ParseInt(sChatID, 10, 64)
+			if err != nil {
+				log.Error("leaveGroupById: %s", err)
+				return false
+			}
+			cfg := tgbotapi.ChatConfig{
+				ChatID: chatID,
+			}
+			_, err = t.bot.LeaveChat(cfg)
+			if err != nil {
+				log.Error("leaveGroupById: %s", err)
+				return false
+			}
+			return true
+		},
+		"getChatMembersCount": func(chat string) interface{} {
+			chatID, err := t.getUserId(chat)
+			if err != nil {
+				return false
+			}
+			cfg := tgbotapi.ChatConfig{
+				ChatID: chatID,
+			}
+			num, err := t.bot.GetChatMembersCount(cfg)
+			if err != nil {
+				log.Error("getChatMembersCount: %s", err)
+				return -1
+			}
+			return num
+		},
+		"getCachedIds": func() interface{} {
+			tmpMap := make(map[string]int64)
+			t.cacheId.Range(func(key interface{}, value interface{}) bool {
+				var username string
+				var ok bool
+				var id int64
+				if username, ok = key.(string); !ok {
+					log.Error("error on username")
+					return true
+				}
+				if id, ok = value.(int64); !ok {
+					log.Error("error on id")
+					return true
+				}
+				tmpMap[username] = id
+				return true
+			})
+			return tmpMap
 		},
 	}
 
@@ -292,21 +381,23 @@ func (t *Telegram) loadUsernames() bool {
 	return true
 }
 
-func (t *Telegram) GetCommandArgs(cmd string) (string, string) {
+func (t *Telegram) GetCommandArgs(cmd string) (string, []string, error) {
 	if !strings.HasPrefix(cmd, "/") {
-		return "", ""
+		return "", nil, fmt.Errorf("not a command")
 	}
 
 	// Remove '/' char
 	cmd = cmd[1:]
-	args := ""
-	if strings.Contains(cmd, " ") {
-		i := strings.Index(cmd, " ")
-		args = cmd[i+1:]
-		cmd = cmd[0:i]
+	r := csv.NewReader(strings.NewReader(cmd))
+	r.Comma = ' '
+	args, err := r.Read()
+	if err != nil {
+		return "", nil, fmt.Errorf("GetCommandArgs: %s", err)
 	}
 
-	return strings.Title(cmd), args
+	cmd = args[0]
+
+	return strings.Title(cmd), args[1:], nil
 }
 
 func (t *Telegram) getUserId(username string) (int64, error) {
